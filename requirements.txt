@@ -1,0 +1,25 @@
+# CosyVoice Minimal Inference Requirements
+# 核心依赖
+torch>=2.0.0
+torchaudio>=2.0.0
+numpy>=1.21.0
+onnxruntime>=1.15.0
+onnxruntime-gpu>=1.15.0  # 如果有GPU
+
+# 文本处理
+wetext>=0.1.0
+inflect>=5.0.0
+
+# 音频处理
+whisper>=1.0.0
+kaldifst>=1.0.0
+
+# 配置和工具
+hyperpyyaml>=1.2.0
+omegaconf>=2.3.0
+tqdm>=4.64.0
+modelscope>=1.9.0
+
+# 可选依赖（用于特定功能）
+# transformers>=4.30.0  # 如果使用Qwen tokenizer
+# tiktoken>=0.4.0      # 如果使用tiktoken
