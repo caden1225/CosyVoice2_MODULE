@@ -25,7 +25,6 @@ import os
 import re
 import inflect
 from copy import deepcopy
-print("use wetext default normalizer for text Normalization")
 from wetext import Normalizer as ZhNormalizer
 from wetext import Normalizer as EnNormalizer
 from ..utils.file_utils import logging
@@ -33,7 +32,7 @@ from ..utils.frontend_utils import contains_chinese, replace_blank, replace_corn
 
 
 MODULE_DIR = os.path.dirname(os.path.abspath(__file__))
-WETEXT_DIR = os.path.abspath(os.path.join(MODULE_DIR, '..', '..', 'WETEXT'))
+WETEXT_MODEL_PATH = os.path.abspath(os.path.join(MODULE_DIR, '..', '..', 'Wetext'))
 
 class CosyVoiceFrontEnd:
 
@@ -59,23 +58,16 @@ class CosyVoiceFrontEnd:
         else:
             self.spk2info = {}
         self.allowed_special = allowed_special
-        self.use_ttsfrd = use_ttsfrd
-        if self.use_ttsfrd:
-            self.frd = ttsfrd.TtsFrontendEngine()
-            ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
-            assert self.frd.initialize('{}/../../pretrained_models/CosyVoice-ttsfrd/resource'.format(ROOT_DIR)) is True, \
-                'failed to initialize ttsfrd resource'
-            self.frd.set_lang_type('pinyinvg')
-        else:
-            self.zh_tn_model = ZhNormalizer(remove_erhua=False, lang="zh",
-                                tagger_path="/home/caden/models/Cosyvoice_Wetext/zh/tn/tagger.fst",
-                                verbalizer_path="/home/caden/models/Cosyvoice_Wetext/zh/tn/verbalizer.fst",
-                                operator="tn")
-            self.en_tn_model = EnNormalizer(lang="en",
-                                tagger_path="/home/caden/models/Cosyvoice_Wetext/en/tn/tagger.fst",
-                                verbalizer_path="/home/caden/models/Cosyvoice_Wetext/en/tn/verbalizer.fst",
-                                operator="tn")
-            self.inflect_parser = inflect.engine()
+        logging.info(f"using WETEXT_MODEL_PATH: {WETEXT_MODEL_PATH}")
+        self.zh_tn_model = ZhNormalizer(remove_erhua=False, lang="zh",
+                            tagger_path=os.path.join(WETEXT_MODEL_PATH, "zh/tn/tagger.fst"),
+                            verbalizer_path=os.path.join(WETEXT_MODEL_PATH, "zh/tn/verbalizer.fst"),
+                            operator="tn")
+        self.en_tn_model = EnNormalizer(lang="en",
+                            tagger_path=os.path.join(WETEXT_MODEL_PATH, "en/tn/tagger.fst"),
+                            verbalizer_path=os.path.join(WETEXT_MODEL_PATH, "en/tn/verbalizer.fst"),
+                            operator="tn")
+        self.inflect_parser = inflect.engine()
 
     def _extract_text_token(self, text):
         if isinstance(text, Generator):
@@ -130,26 +122,22 @@ class CosyVoiceFrontEnd:
         if text_frontend is False or text == '':
             return [text] if split is True else text
         text = text.strip()
-        if self.use_ttsfrd:
-            texts = [i["text"] for i in json.loads(self.frd.do_voicegen_frd(text))["sentences"]]
-            text = ''.join(texts)
+        if contains_chinese(text):
+            text = self.zh_tn_model.normalize(text)
+            text = text.replace("\n", "")
+            text = replace_blank(text)
+            text = replace_corner_mark(text)
+            text = text.replace(".", "。")
+            text = text.replace(" - ", "，")
+            text = remove_bracket(text)
+            text = re.sub(r'[，,、]+$', '。', text)
+            texts = list(split_paragraph(text, partial(self.tokenizer.encode, allowed_special=self.allowed_special), "zh", token_max_n=80,
+                                            token_min_n=60, merge_len=20, comma_split=False))
         else:
-            if contains_chinese(text):
-                text = self.zh_tn_model.normalize(text)
-                text = text.replace("\n", "")
-                text = replace_blank(text)
-                text = replace_corner_mark(text)
-                text = text.replace(".", "。")
-                text = text.replace(" - ", "，")
-                text = remove_bracket(text)
-                text = re.sub(r'[，,、]+$', '。', text)
-                texts = list(split_paragraph(text, partial(self.tokenizer.encode, allowed_special=self.allowed_special), "zh", token_max_n=80,
-                                             token_min_n=60, merge_len=20, comma_split=False))
-            else:
-                text = self.en_tn_model.normalize(text)
-                text = spell_out_number(text, self.inflect_parser)
-                texts = list(split_paragraph(text, partial(self.tokenizer.encode, allowed_special=self.allowed_special), "en", token_max_n=80,
-                                             token_min_n=60, merge_len=20, comma_split=False))
+            text = self.en_tn_model.normalize(text)
+            text = spell_out_number(text, self.inflect_parser)
+            texts = list(split_paragraph(text, partial(self.tokenizer.encode, allowed_special=self.allowed_special), "en", token_max_n=80,
+                                            token_min_n=60, merge_len=20, comma_split=False))
         texts = [i for i in texts if not is_only_punctuation(i)]
         return texts if split is True else text
 

@@ -325,7 +325,6 @@ class CosyVoice2Model(CosyVoiceModel):
             prompt_speech_feat=torch.zeros(1, 0, 80), source_speech_token=torch.zeros(1, 0, dtype=torch.int32), stream=False, speed=1.0, **kwargs):
         # this_uuid is used to track variables related to this inference thread
         this_uuid = str(uuid.uuid1())
-        print(f"this_uuid: {this_uuid}\nmodel input:\ntext: {text}\nflow_embedding: {flow_embedding}\nllm_embedding: {llm_embedding}\nprompt_text: {prompt_text}\nllm_prompt_speech_token: {llm_prompt_speech_token}\nflow_prompt_speech_token: {flow_prompt_speech_token}\nprompt_speech_feat: {prompt_speech_feat}\nsource_speech_token: {source_speech_token}\nstream: {stream}\nspeed: {speed}")
         with self.lock:
             self.tts_speech_token_dict[this_uuid], self.llm_end_dict[this_uuid] = [], False
             self.hift_cache_dict[this_uuid] = None

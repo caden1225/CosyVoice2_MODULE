@@ -1,114 +1,151 @@
-# CosyVoice Minimal Inference Package
+# CosyVoice Minimal（模块化、可嵌入、最小依赖）
 
-这是CosyVoice的精简推理包，只包含必要的推理功能，无需下载完整的CosyVoice项目。
+CosyVoice Minimal 的目标：将 CosyVoice 的核心推理能力模块化，尽量将依赖收敛到本项目中，实现“可在任意环境快速集成”的最小可用组件（CLI/WebUI/SDK）。
 
-## 文件结构
+本项目内置必要的前端、声学与声码器推理逻辑，默认关闭 JIT/TRT 等可选优化，优先保证开箱即用与可移植性；需要时可在相同 API 上开启加速。
+
+## 特性一览
+
+- 模块化 API：`CosyVoice2` 提供统一推理接口（SFT/Zero-shot/跨语种/指令）。
+- 可嵌入：作为 SDK 直接导入使用，或通过 CLI、Gradio WebUI 快速验证。
+- 最小依赖：依赖列表精简并随仓库提供，避免拉取完整上游工程。
+- 离线友好：默认设置禁用部分在线拉取（见 `webui.py` 顶部环境变量）。
+- 跨环境：CPU/GPU 皆可运行；JIT/TRT/VLLM 等可选能力按需开启。
+
+## 目录结构
 
 ```
 cosyvoice_minimal/
-├── cosyvoice/                 # 核心推理模块
-│   ├── cli/                  # 命令行接口
-│   ├── utils/                 # 工具函数
-│   ├── llm/                   # 语言模型
-│   ├── flow/                  # 流模型
-│   ├── hifigan/               # 声码器
-│   ├── transformer/           # Transformer组件
-│   ├── tokenizer/             # 分词器
-│   └── dataset/               # 数据处理
-├── run.py                     # 推理脚本
-├── requirements.txt           # 依赖包
-└── README.md                  # 说明文档
+├── cosyvoice/                   # 核心模块（前端/模型/声码器/工具）
+│   ├── cli/
+│   │   ├── cosyvoice.py         # CosyVoice / CosyVoice2 高层封装与推理接口
+│   │   ├── model.py             # 模型装载与推理实现
+│   │   └── frontend.py          # 文本/提示/说话人前端处理
+│   ├── utils/                   # 文件/前端工具等
+│   ├── flow/, hifigan/, llm/, transformer/, tokenizer/, dataset/
+├── run.py                       # CLI 示例脚本（最小推理用法）
+├── webui.py                     # WebUI（Gradio）
+├── requirements.txt             # 依赖清单（最小化）
+├── install.sh                   # 一键安装（CPU 版示例）
+├── audios/                      # 示例参考音频
+└── README.md
 ```
 
-## 使用方法
+## 环境与安装
 
-### 1. 安装依赖
+建议使用 Conda 并启用 Python 3.12 的环境（遵循本地约定“312”环境）。
 
 ```bash
+conda create -n 312 python=3.12 -y
+conda activate 312
 pip install -r requirements.txt
+# 或使用脚本（CPU 版 PyTorch 源）：
+bash install.sh
 ```
 
-### 2. 准备模型
+提示：如需 GPU 版本 PyTorch/ONNX Runtime，请根据你的 CUDA 版本改用相应官方索引安装。
 
-确保CosyVoice2模型已下载到本地，默认路径为：
+## 模型准备
+
+默认模型目录（可自定义）：
+
 ```
 /home/caden/models/CosyVoice2-0_5B/
 ```
 
-模型目录应包含以下文件：
-- `cosyvoice2.yaml` - 配置文件
-- `llm.pt` - 语言模型权重
-- `flow.pt` - 流模型权重
-- `hift.pt` - 声码器权重
-- `campplus.onnx` - 说话人编码器
-- `speech_tokenizer_v2.onnx` - 语音分词器
-- `spk2info.pt` - 说话人信息
-- `CosyVoice-BlankEN/` - Qwen模型目录
+该目录应包含（CosyVoice2）至少：
 
-### 3. 准备参考音频
+- `cosyvoice2.yaml`
+- `llm.pt`, `flow.pt`, `hift.pt`
+- `campplus.onnx`, `speech_tokenizer_v2.onnx`
+- `spk2info.pt`
+- `CosyVoice-BlankEN/`（前端所需 Qwen 资源路径会在加载时以该目录为根）
 
-将参考音频文件放在指定位置：
-```
-/home/caden/workspace/data/audio_samples/打开车门.wav
-```
+你也可以放置其他尺寸或带 `-Instruct` 后缀的 CosyVoice2 模型目录，API 保持一致。
 
-### 4. 运行推理
+## 快速开始
+
+### 方式一：命令行示例（最小用法）
 
 ```bash
 python run.py
 ```
 
-## 功能说明
+默认行为（见 `run.py`）：
 
-脚本支持三种推理模式：
+- 使用 `CosyVoice2(model_path, load_jit=False, load_trt=False, fp16=False)` 初始化（保证通用性）。
+- 预置执行 SFT（预训练音色）推理并保存到 `sft_spk_speech_0.wav`。
+- 可自行取消注释 Zero-shot/跨语种/指令示例代码段进行测试。
 
-1. **Zero-shot推理**: 使用参考音频和提示文本进行语音合成
-2. **细粒度控制**: 支持在文本中添加特殊标记（如[laughter]）
-3. **指令推理**: 根据指令改变语音风格（如方言）
+支持通过环境变量覆盖部分路径：
 
-## 自定义配置
+- `COSYVOICE_PROMPT_AUDIO`：参考音频路径（默认 `./audios/我当然知道了.wav`）。
 
-如需修改配置，请编辑`run.py`文件中的以下变量：
+### 方式二：WebUI（Gradio）
 
-```python
-# 模型路径
-model_dir = '/path/to/your/model'
-
-# 参考音频路径
-prompt_audio_path = '/path/to/your/audio.wav'
-
-# 合成文本
-text_to_synthesize = '你要合成的文本'
-
-# 提示文本（用于zero-shot）
-prompt_text = '参考音频对应的文本'
-
-# 指令（用于指令推理）
-instruction = '用某种方言说这句话'
+```bash
+python webui.py --model_dir /home/caden/models/CosyVoice2-0_5B --port 8000
 ```
 
-## 注意事项
+功能：
 
-1. 首次运行时会自动下载wetext模型，需要网络连接
-2. 确保有足够的GPU内存（建议8GB以上）
-3. 音频文件格式支持wav、mp3等常见格式
-4. 合成文本长度建议不超过200个字符
+- 四种模式：`预训练音色`、`3s极速复刻`（Zero-shot）、`跨语种复刻`、`自然语言控制`（需 Instruct 模型）。
+- 支持上传或录音作为 prompt 音频，支持语速调节与一键保存 zero-shot 复刻音色。
+- 默认设置了若干离线/兼容性环境变量（如禁用 HF datasets 在线、torchaudio dispatcher 等）。
 
-## 故障排除
+## 作为模块嵌入（SDK 用法）
 
-### 常见问题
+最小代码骨架如下（同步 `cosyvoice/cli/cosyvoice.py` 的接口）：
 
-1. **CUDA内存不足**: 尝试设置`fp16=True`或减少文本长度
-2. **模型文件缺失**: 检查模型目录是否完整
-3. **音频加载失败**: 检查音频文件路径和格式
-4. **网络连接问题**: wetext模型下载需要网络连接
+```python
+from cosyvoice.cli.cosyvoice import CosyVoice2
+from cosyvoice.utils.file_utils import load_wav
 
-### 性能优化
+model_dir = "/path/to/CosyVoice2"
+cv = CosyVoice2(model_dir, load_jit=False, load_trt=False, fp16=False)
 
-- 使用GPU加速：确保安装了`onnxruntime-gpu`
-- 启用半精度：设置`fp16=True`
-- 批量处理：可以修改脚本支持批量文本处理
+# 1) 预训练音色（SFT）
+for m in cv.inference_sft("你好，世界。", spk_id="woman", stream=False):
+    audio = m["tts_speech"].numpy()
+
+# 2) Zero-shot 复刻
+prompt_text = "我当然知道了"
+prompt = load_wav("./audios/我当然知道了.wav", 16000)
+for m in cv.inference_zero_shot("待合成文本", prompt_text, prompt, stream=False):
+    audio = m["tts_speech"].numpy()
+
+# 3) 跨语种复刻
+for m in cv.inference_cross_lingual("こんにちは", prompt, stream=False):
+    audio = m["tts_speech"].numpy()
+
+# 4) 自然语言控制（CosyVoice2-Instruct 模型）
+for m in cv.inference_instruct2("请用激昂的情绪朗读。", "更有激情一些", prompt, stream=False):
+    audio = m["tts_speech"].numpy()
+```
+
+可选增强：
+
+- `fp16=True`：半精度（需 GPU）。
+- `load_trt=True`：启用 TensorRT 解码（需准备 `.plan/onnx` 资源）。
+- `load_vllm=True`（仅 CosyVoice2）：外接 vLLM（见代码）。
+
+## 依赖最小化与环境说明
+
+- `requirements.txt` 提供最小依赖集合；`install.sh` 给出 CPU 参考安装流程。
+- `webui.py` 顶部设置了：
+  - `HF_DATASETS_OFFLINE=1`（尽量离线）；
+  - `TORCHAUDIO_USE_BACKEND_DISPATCHER=0`（兼容性）；
+  - `CURL_CA_BUNDLE=''`（某些网络环境下的证书问题绕开）。
+- 默认关闭 JIT/TRT/FP16，保证在无 GPU/驱动环境也能跑通；需要时在初始化参数中开启。
+
+## 常见问题（FAQ）
+
+- 没有输出/推理报错：确认模型目录完整（见“模型准备”），日志中如提示缺文件请补齐。
+- CUDA OOM：尝试 `fp16=True`、缩短输入文本、避免过多并发；或先用 CPU 验证流程。
+- 提示文本与音频不一致导致效果差：确保 Zero-shot 的 `prompt_text` 与参考音频语义一致且语种匹配。
+- 采样率问题：WebUI 下 prompt 音频需 ≥16kHz；CLI/SDK 请用 `load_wav(..., 16000)`。
+- 速度调节：WebUI 内置 `speed_change`；SDK 可在各 `inference_*` 中使用 `speed` 参数。
 
 ## 许可证
 
-本包基于Apache License 2.0许可证，与原始CosyVoice项目保持一致。
+本项目基于 Apache License 2.0，与上游 CosyVoice 项目保持一致。
