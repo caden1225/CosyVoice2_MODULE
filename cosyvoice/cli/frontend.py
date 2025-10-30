@@ -24,17 +24,16 @@ import torchaudio
 import os
 import re
 import inflect
-try:
-    import ttsfrd
-    use_ttsfrd = True
-except ImportError:
-    print("failed to import ttsfrd, use wetext instead")
-    from wetext import Normalizer as ZhNormalizer
-    from wetext import Normalizer as EnNormalizer
-    use_ttsfrd = False
-from cosyvoice.utils.file_utils import logging
-from cosyvoice.utils.frontend_utils import contains_chinese, replace_blank, replace_corner_mark, remove_bracket, spell_out_number, split_paragraph, is_only_punctuation
+from copy import deepcopy
+print("use wetext default normalizer for text Normalization")
+from wetext import Normalizer as ZhNormalizer
+from wetext import Normalizer as EnNormalizer
+from ..utils.file_utils import logging
+from ..utils.frontend_utils import contains_chinese, replace_blank, replace_corner_mark, remove_bracket, spell_out_number, split_paragraph, is_only_punctuation
 
+
+MODULE_DIR = os.path.dirname(os.path.abspath(__file__))
+WETEXT_DIR = os.path.abspath(os.path.join(MODULE_DIR, '..', '..', 'WETEXT'))
 
 class CosyVoiceFrontEnd:
 
@@ -156,7 +155,7 @@ class CosyVoiceFrontEnd:
 
     def frontend_sft(self, tts_text, spk_id):
         tts_text_token, tts_text_token_len = self._extract_text_token(tts_text)
-        embedding = self.spk2info[spk_id]['embedding']
+        embedding = self.spk2info[spk_id]['llm_embedding']
         model_input = {'text': tts_text_token, 'text_len': tts_text_token_len, 'llm_embedding': embedding, 'flow_embedding': embedding}
         return model_input
 
@@ -179,7 +178,7 @@ class CosyVoiceFrontEnd:
                            'prompt_speech_feat': speech_feat, 'prompt_speech_feat_len': speech_feat_len,
                            'llm_embedding': embedding, 'flow_embedding': embedding}
         else:
-            model_input = self.spk2info[zero_shot_spk_id]
+            model_input = deepcopy(self.spk2info[zero_shot_spk_id])
         model_input['text'] = tts_text_token
         model_input['text_len'] = tts_text_token_len
         return model_input

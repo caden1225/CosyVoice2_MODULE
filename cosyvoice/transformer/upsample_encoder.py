@@ -21,17 +21,17 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-from cosyvoice.transformer.convolution import ConvolutionModule
-from cosyvoice.transformer.encoder_layer import ConformerEncoderLayer
-from cosyvoice.transformer.positionwise_feed_forward import PositionwiseFeedForward
-from cosyvoice.utils.class_utils import (
+from .convolution import ConvolutionModule
+from .encoder_layer import ConformerEncoderLayer
+from .positionwise_feed_forward import PositionwiseFeedForward
+from ..utils.class_utils import (
     COSYVOICE_EMB_CLASSES,
     COSYVOICE_SUBSAMPLE_CLASSES,
     COSYVOICE_ATTENTION_CLASSES,
     COSYVOICE_ACTIVATION_CLASSES,
 )
-from cosyvoice.utils.mask import make_pad_mask
-from cosyvoice.utils.mask import add_optional_chunk_mask
+from ..utils.mask import make_pad_mask
+from ..utils.mask import add_optional_chunk_mask
 
 
 class Upsample1D(nn.Module):

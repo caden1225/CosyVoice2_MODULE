@@ -22,10 +22,10 @@ from torch import nn
 import torch.nn.functional as F
 from transformers import Qwen2ForCausalLM
 from torch.nn.utils.rnn import pad_sequence, unpad_sequence
-from cosyvoice.utils.common import IGNORE_ID
-from cosyvoice.utils.common import th_accuracy
-from cosyvoice.utils.file_utils import logging
-from cosyvoice.utils.mask import make_pad_mask
+from ..utils.common import IGNORE_ID
+from ..utils.common import th_accuracy
+from ..utils.file_utils import logging
+from ..utils.mask import make_pad_mask
 
 
 class TransformerLM(torch.nn.Module):

@@ -14,8 +14,8 @@
 # limitations under the License.
 import torch
 
-from cosyvoice.transformer.activation import Swish
-from cosyvoice.transformer.subsampling import (
+from ..transformer.activation import Swish
+from ..transformer.subsampling import (
     LinearNoSubsampling,
     EmbedinigNoSubsampling,
     Conv1dSubsampling2,
@@ -23,19 +23,19 @@ from cosyvoice.transformer.subsampling import (
     Conv2dSubsampling6,
     Conv2dSubsampling8,
 )
-from cosyvoice.transformer.embedding import (PositionalEncoding,
+from ..transformer.embedding import (PositionalEncoding,
                                              RelPositionalEncoding,
                                              WhisperPositionalEncoding,
                                              LearnablePositionalEncoding,
                                              NoPositionalEncoding)
-from cosyvoice.transformer.attention import (MultiHeadedAttention,
+from ..transformer.attention import (MultiHeadedAttention,
                                              RelPositionMultiHeadedAttention)
-from cosyvoice.transformer.embedding import EspnetRelPositionalEncoding
-from cosyvoice.transformer.subsampling import LegacyLinearNoSubsampling
-from cosyvoice.llm.llm import TransformerLM, Qwen2LM
-from cosyvoice.flow.flow import MaskedDiffWithXvec, CausalMaskedDiffWithXvec
-from cosyvoice.hifigan.generator import HiFTGenerator
-from cosyvoice.cli.model import CosyVoiceModel, CosyVoice2Model
+from ..transformer.embedding import EspnetRelPositionalEncoding
+from ..transformer.subsampling import LegacyLinearNoSubsampling
+from ..llm.llm import TransformerLM, Qwen2LM
+from ..flow.flow import MaskedDiffWithXvec, CausalMaskedDiffWithXvec
+from ..hifigan.generator import HiFTGenerator
+from ..cli.model import CosyVoiceModel, CosyVoice2Model
 
 
 COSYVOICE_ACTIVATION_CLASSES = {

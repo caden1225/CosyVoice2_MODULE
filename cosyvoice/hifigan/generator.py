@@ -29,9 +29,9 @@ except ImportError:
     from torch.nn.utils import weight_norm
 from torch.distributions.uniform import Uniform
 
-from cosyvoice.transformer.activation import Snake
-from cosyvoice.utils.common import get_padding
-from cosyvoice.utils.common import init_weights
+from ..transformer.activation import Snake
+from ..utils.common import get_padding
+from ..utils.common import init_weights
 
 
 """hifigan based generator implementation.

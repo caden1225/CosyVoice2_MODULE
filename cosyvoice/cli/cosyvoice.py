@@ -17,10 +17,10 @@ from typing import Generator
 from tqdm import tqdm
 from hyperpyyaml import load_hyperpyyaml
 import torch
-from cosyvoice.cli.frontend import CosyVoiceFrontEnd
-from cosyvoice.cli.model import CosyVoiceModel, CosyVoice2Model
-from cosyvoice.utils.file_utils import logging
-from cosyvoice.utils.class_utils import get_model_type
+from .frontend import CosyVoiceFrontEnd
+from .model import CosyVoiceModel, CosyVoice2Model
+from ..utils.file_utils import logging
+from ..utils.class_utils import get_model_type
 
 
 class CosyVoice:
