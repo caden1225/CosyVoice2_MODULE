@@ -4,8 +4,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn import AvgPool1d, Conv1d, Conv2d, ConvTranspose1d
-from torch.nn.utils import remove_weight_norm, spectral_norm, weight_norm
-
+from torch.nn.utils import remove_weight_norm, spectral_norm
+from torch.nn.utils.parametrizations import weight_norm
 from .xutils import get_padding, init_weights
 
 LRELU_SLOPE = 0.1
@@ -196,7 +196,7 @@ class Generator(torch.nn.Module):
 
         return x
 
-    def remove_weight_norm(self):
+    def remove_weight_norm(self) -> None:
         print("Removing weight norm...")
         for l in self.ups:
             remove_weight_norm(l)

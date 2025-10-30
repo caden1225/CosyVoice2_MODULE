@@ -12,6 +12,12 @@ CosyVoice Minimal 的目标：将 CosyVoice 的核心推理能力模块化，尽
 - 离线友好：默认设置禁用部分在线拉取（见 `webui.py` 顶部环境变量）。
 - 跨环境：CPU/GPU 皆可运行；JIT/TRT/VLLM 等可选能力按需开启。
 
+## 版本更新 v0.5
+
+- 新增对 macOS 的官方支持（Apple Silicon 与 Intel 均可）。
+- 提供 `requirements-mac.txt`，便于在 macOS 上一键安装最小依赖。
+- 默认配置与 API 接口保持不变，按需开启 `fp16/load_trt/load_vllm`（macOS 上建议使用 CPU 或 MPS）。
+
 ## 目录结构
 
 ```
@@ -44,6 +50,22 @@ bash install.sh
 ```
 
 提示：如需 GPU 版本 PyTorch/ONNX Runtime，请根据你的 CUDA 版本改用相应官方索引安装。
+
+### macOS（Apple Silicon/Intel）安装
+
+在 macOS 上推荐同样使用 3.12 的 Conda 环境，并安装 `requirements-mac.txt`：
+
+```bash
+conda create -n 312 python=3.12 -y
+conda activate 312
+pip install -r requirements-mac.txt
+```
+
+说明：
+
+- Apple Silicon（M1/M2/M3）上，PyTorch 默认支持 MPS（Metal）。目前本项目默认以 CPU/MPS 运行，无需 CUDA。
+- 如果你希望使用 MPS，可保持默认设置；若遇到显存相关报错，可适当缩短文本或分段推理。
+- 其余用法与 Linux 一致，WebUI/CLI/SDK API 无差异。
 
 ## 模型准备
 

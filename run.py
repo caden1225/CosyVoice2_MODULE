@@ -7,7 +7,8 @@ from cosyvoice.utils.file_utils import load_wav
 
 def main():
     # 模型路径 - 从环境变量获取或使用默认值
-    model_path = '/home/caden/models/CosyVoice2-0_5B'
+    # model_path = '/home/caden/models/CosyVoice2-0_5B'
+    model_path = '/Users/caden/models/CosyVoice2-0.5B'
     # 初始化CosyVoice2模型
     print("正在初始化CosyVoice2模型...")
     cosyvoice = CosyVoice2(model_path, load_jit=False, load_trt=False, fp16=False)
@@ -20,7 +21,7 @@ def main():
     # )
 
     # 加载参考音频 - 从环境变量获取或使用默认值
-    prompt_audio_path = os.getenv('COSYVOICE_PROMPT_AUDIO', '/home/caden/workspace/cosyvoice_minimal/audios/我当然知道了.wav')
+    prompt_audio_path = os.getenv('COSYVOICE_PROMPT_AUDIO', '/Users/caden/workspace/audios/我当然知道了.wav')
     prompt_speech_16k = load_wav(prompt_audio_path, 16000)
     print(f"已加载参考音频: {prompt_audio_path}")
     

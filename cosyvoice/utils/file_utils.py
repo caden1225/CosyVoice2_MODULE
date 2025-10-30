@@ -64,7 +64,7 @@ def load_wav(wav, target_sr):
             print(f"使用 librosa 也失败: {e2}")
             # 最后尝试使用 torchaudio（可能没有 torchcodec）
             speech, sample_rate = torchaudio.load(wav)
-    
+
     speech = speech.mean(dim=0, keepdim=True)
     if sample_rate != target_sr:
         assert sample_rate > target_sr, 'wav sample rate {} must be greater than {}'.format(sample_rate, target_sr)

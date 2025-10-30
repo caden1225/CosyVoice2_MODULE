@@ -1,1 +1,0 @@
-# CosyVoice Minimal Inference Package

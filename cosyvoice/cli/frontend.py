@@ -45,7 +45,15 @@ class CosyVoiceFrontEnd:
                  allowed_special: str = 'all'):
         self.tokenizer = get_tokenizer()
         self.feat_extractor = feat_extractor
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        # self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        # For Apple silicon M series chip, use mps if cuda is not available
+        self.device = torch.device('cpu')
+        if torch.cuda.is_available():
+            self.device = torch.device('cuda')
+        elif torch.backends.mps.is_available():
+            self.device = torch.device('mps')
+        elif torch.xpu.is_available():
+            self.device = torch.device('xpu')
         option = onnxruntime.SessionOptions()
         option.graph_optimization_level = onnxruntime.GraphOptimizationLevel.ORT_ENABLE_ALL
         option.intra_op_num_threads = 1
@@ -149,8 +157,8 @@ class CosyVoiceFrontEnd:
 
     def frontend_zero_shot(self, tts_text, prompt_text, prompt_speech_16k, resample_rate, zero_shot_spk_id):
         tts_text_token, tts_text_token_len = self._extract_text_token(tts_text)
+        prompt_text_token, prompt_text_token_len = self._extract_text_token(prompt_text)
         if zero_shot_spk_id == '':
-            prompt_text_token, prompt_text_token_len = self._extract_text_token(prompt_text)
             prompt_speech_resample = torchaudio.transforms.Resample(orig_freq=16000, new_freq=resample_rate)(prompt_speech_16k)
             speech_feat, speech_feat_len = self._extract_speech_feat(prompt_speech_resample)
             speech_token, speech_token_len = self._extract_speech_token(prompt_speech_16k)
@@ -166,13 +174,21 @@ class CosyVoiceFrontEnd:
                            'prompt_speech_feat': speech_feat, 'prompt_speech_feat_len': speech_feat_len,
                            'llm_embedding': embedding, 'flow_embedding': embedding}
         else:
-            model_input = deepcopy(self.spk2info[zero_shot_spk_id])
+            if '<|endofprompt|>' in prompt_text:
+                model_input = deepcopy(self.spk2info[zero_shot_spk_id])
+                # override the input using instruct_prompt_text
+                model_input['prompt_text'] = prompt_text_token
+                model_input['prompt_text_len'] = prompt_text_token_len
+            else:
+                model_input = self.spk2info[zero_shot_spk_id]
         model_input['text'] = tts_text_token
         model_input['text_len'] = tts_text_token_len
         return model_input
 
     def frontend_cross_lingual(self, tts_text, prompt_speech_16k, resample_rate, zero_shot_spk_id):
         model_input = self.frontend_zero_shot(tts_text, '', prompt_speech_16k, resample_rate, zero_shot_spk_id)
+        if zero_shot_spk_id:
+            model_input = deepcopy(model_input)
         # in cross lingual mode, we remove prompt in llm
         del model_input['prompt_text']
         del model_input['prompt_text_len']

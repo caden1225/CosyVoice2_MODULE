@@ -33,7 +33,15 @@ class CosyVoiceModel:
                  flow: torch.nn.Module,
                  hift: torch.nn.Module,
                  fp16: bool = False):
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        # self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        # For Apple silicon M series chip, use mps if cuda is not available
+        self.device = torch.device('cpu')
+        if torch.cuda.is_available():
+            self.device = torch.device('cuda')
+        elif torch.backends.mps.is_available():
+            self.device = torch.device('mps')
+        elif torch.xpu.is_available():
+            self.device = torch.device('xpu')
         self.llm = llm
         self.flow = flow
         self.hift = hift
@@ -101,7 +109,7 @@ class CosyVoiceModel:
         return {'min_shape': min_shape, 'opt_shape': opt_shape, 'max_shape': max_shape, 'input_names': input_names}
 
     def llm_job(self, text, prompt_text, llm_prompt_speech_token, llm_embedding, uuid):
-        with self.llm_context, torch.cuda.amp.autocast(self.fp16 is True and hasattr(self.llm, 'vllm') is False):
+        with self.llm_context, torch.amp.autocast('cuda', torch.float16, self.fp16 is True and hasattr(self.llm, 'vllm') is False and self.device == 'cuda'):
             if isinstance(text, Generator):
                 assert isinstance(self, CosyVoice2Model) and not hasattr(self.llm, 'vllm'), 'streaming input text is only implemented for CosyVoice2 and do not support vllm!'
                 for i in self.llm.inference_bistream(text=text,
@@ -128,7 +136,7 @@ class CosyVoiceModel:
         self.llm_end_dict[uuid] = True
 
     def token2wav(self, token, prompt_token, prompt_feat, embedding, uuid, finalize=False, speed=1.0):
-        with torch.cuda.amp.autocast(self.fp16):
+        with torch.amp.autocast('cuda', torch.float16, self.fp16):
             tts_mel, self.flow_cache_dict[uuid] = self.flow.inference(token=token.to(self.device),
                                                                       token_len=torch.tensor([token.shape[1]], dtype=torch.int32).to(self.device),
                                                                       prompt_token=prompt_token.to(self.device),
@@ -244,7 +252,15 @@ class CosyVoice2Model(CosyVoiceModel):
                  flow: torch.nn.Module,
                  hift: torch.nn.Module,
                  fp16: bool = False):
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        # self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        # For Apple silicon M series chip, use mps if cuda is not available
+        self.device = torch.device('cpu')
+        if torch.cuda.is_available():
+            self.device = torch.device('cuda')
+        elif torch.backends.mps.is_available():
+            self.device = torch.device('mps')
+        elif torch.xpu.is_available():
+            self.device = torch.device('xpu')
         self.llm = llm
         self.flow = flow
         self.hift = hift
@@ -283,7 +299,7 @@ class CosyVoice2Model(CosyVoiceModel):
         del self.llm.llm.model.model.layers
 
     def token2wav(self, token, prompt_token, prompt_feat, embedding, token_offset, uuid, stream=False, finalize=False, speed=1.0):
-        with torch.cuda.amp.autocast(self.fp16):
+        with torch.amp.autocast('cuda', torch.float16, self.fp16):
             tts_mel, _ = self.flow.inference(token=token.to(self.device),
                                              token_len=torch.tensor([token.shape[1]], dtype=torch.int32).to(self.device),
                                              prompt_token=prompt_token.to(self.device),
