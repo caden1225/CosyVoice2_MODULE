@@ -1,17 +1,22 @@
 # CosyVoice Minimal Inference Requirements
 # 核心依赖
-torch>=2.0.0
-torchaudio>=2.0.0
-numpy>=1.21.0
-onnxruntime>=1.15.0
-onnxruntime-gpu>=1.15.0  # 如果有GPU
+transformers==4.51.3 # 不知道为什么会直接影响音频合成。。。
+omegaconf
+torch
+torchaudio
+numpy
+onnxruntime
+scipy==1.16.3
+conformer==0.3.2
+diffusers==0.35.2
+
 
 # 文本处理
-wetext>=0.1.0
-inflect>=5.0.0
+wetext==0.0.4
+inflect
 
 # 音频处理
-whisper>=1.0.0
+openai-whisper
 kaldifst>=1.0.0
 
 # 配置和工具
