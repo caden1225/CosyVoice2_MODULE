@@ -13,7 +13,7 @@ import time as _time
 def main():
     set_all_random_seed(0)
     # 模型路径 - 从环境变量获取或使用默认值
-    model_path = '/home/caden/models/CosyVoice2-0_5B'
+    model_path = '/Users/caden/models/CosyVoice2-0_5B'
     # model_path = '/Users/caden/models/CosyVoice2-0.5B'
     print("正在初始化CosyVoice2模型...")
     cosyvoice = CosyVoice2(model_path, load_jit=False, load_trt=False, fp16=False)
@@ -40,7 +40,7 @@ def main():
     import time
     start = time.perf_counter()
     print(f"接收参数：text_to_synthesize, prompt_text, prompt_speech_16k") 
-    for i, result in enumerate(cosyvoice.inference_zero_shot(text_to_synthesize, prompt_text, prompt_speech_16k, stream=False)):
+for i, result in enumerate(cosyvoice.inference_zero_shot(text_to_synthesize, prompt_text, prompt_speech_16k, stream=False)):
         output_file = f'orin_zero_shot_prompt_speech_{i}.wav'
         # 使用 soundfile 保存音频文件
         print(f"time cost: {time.perf_counter() - start}")

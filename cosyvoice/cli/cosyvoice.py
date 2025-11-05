@@ -19,6 +19,7 @@ from typing import Generator
 from tqdm import tqdm
 from hyperpyyaml import load_hyperpyyaml
 import torch
+import numpy as np
 from .frontend import CosyVoiceFrontEnd
 from .model import CosyVoiceModel, CosyVoice2Model
 from ..utils.file_utils import logging
@@ -198,3 +199,117 @@ class CosyVoice2(CosyVoice):
                 logging.info('yield speech len {}, rtf {}'.format(speech_len, (time.time() - start_time) / speech_len))
                 yield model_output
                 start_time = time.time()
+
+    def inference_sft_chunked(self, text_chunks, spk_id, stream=False, speed=1.0, text_frontend=True,
+                             token_hop_len=None, mel_cache_len=None):
+        """
+        Synthesize speech from text chunks while maintaining semantic continuity across chunks.
+
+        This method leverages the model's bistream inference capability to process multiple
+        text chunks as a continuous stream, preserving context and ensuring coherent audio output.
+
+        Args:
+            text_chunks: List[str] or Generator[str] - Text chunks to synthesize
+            spk_id: str - Speaker ID from available speakers
+            stream: bool - Whether to yield audio in streaming mode (default: False)
+            speed: float - Speech speed multiplier (default: 1.0)
+            text_frontend: bool - Whether to apply text normalization (default: True)
+            token_hop_len: int - Number of speech tokens per output chunk in streaming mode.
+                          Default: 25 (~1s audio). Smaller=lower latency, Larger=smoother output.
+                          Only effective when stream=True.
+            mel_cache_len: int - Number of mel frames to cache for smooth transitions.
+                          Default: 8. Affects boundary smoothness between chunks.
+
+        Yields:
+            dict: {'tts_speech': torch.Tensor} - Audio waveform for each output chunk
+
+        Example:
+            >>> # Basic usage
+            >>> chunks = ["这是第一句话", "这是第二句话", "这是第三句话"]
+            >>> for output in model.inference_sft_chunked(chunks, spk_id="girl_zh"):
+            >>>     audio = output['tts_speech']
+            >>>     # process audio...
+
+            >>> # Custom chunk size for lower latency
+            >>> for output in model.inference_sft_chunked(chunks, spk_id="girl_zh",
+            >>>                                           stream=True, token_hop_len=15):
+            >>>     audio = output['tts_speech']  # Smaller chunks, faster response
+        """
+        assert isinstance(self.model, CosyVoice2Model), 'inference_sft_chunked is only implemented for CosyVoice2!'
+
+        # Backup original values and set custom parameters if provided
+        original_token_hop_len = self.model.token_hop_len
+        original_mel_cache_len = self.model.mel_cache_len
+        original_source_cache_len = self.model.source_cache_len
+
+        if token_hop_len is not None:
+            self.model.token_hop_len = token_hop_len
+            logging.info('Custom token_hop_len set to {}'.format(token_hop_len))
+
+        if mel_cache_len is not None:
+            self.model.mel_cache_len = mel_cache_len
+            self.model.source_cache_len = int(mel_cache_len * 480)
+            self.model.speech_window = np.hamming(2 * self.model.source_cache_len)
+            logging.info('Custom mel_cache_len set to {}'.format(mel_cache_len))
+
+        try:
+            # Get speaker embedding
+            embedding = self.frontend.spk2info[spk_id]['llm_embedding']
+
+            # Create text token generator that processes chunks sequentially
+            def text_token_generator():
+                """
+                Generator that yields text tokens from each chunk while maintaining continuity.
+                Each chunk is normalized independently but tokens flow continuously to the model.
+                """
+                for chunk_idx, text_chunk in enumerate(text_chunks if not isinstance(text_chunks, Generator) else text_chunks):
+                    # Normalize text but don't split into sentences
+                    # This preserves the chunk boundaries provided by the user
+                    if text_frontend:
+                        normalized_text = self.frontend.text_normalize(text_chunk, split=False, text_frontend=True)
+                    else:
+                        normalized_text = text_chunk
+
+                    if not normalized_text or normalized_text.strip() == '':
+                        logging.warning('chunk {} normalized to empty string, skipping'.format(chunk_idx))
+                        continue
+
+                    logging.info('processing chunk {}: {}'.format(chunk_idx, normalized_text))
+
+                    # Extract text tokens for this chunk
+                    text_token, _ = self.frontend._extract_text_token(normalized_text)
+
+                    # Yield tokens one by one to feed the bistream inference
+                    for i in range(text_token.shape[1]):
+                        yield text_token[:, i:i+1]
+
+            # Prepare model input using the bistream-compatible format
+            # The key is to pass the text as a Generator, which triggers bistream inference
+            model_input = {
+                'text': text_token_generator(),  # Generator triggers inference_bistream
+                'text_len': torch.tensor([0], dtype=torch.int32),  # Dummy value for bistream mode
+                'prompt_text': torch.zeros(1, 0, dtype=torch.int32),
+                'prompt_text_len': torch.tensor([0], dtype=torch.int32),
+                'llm_prompt_speech_token': torch.zeros(1, 0, dtype=torch.int32),
+                'llm_prompt_speech_token_len': torch.tensor([0], dtype=torch.int32),
+                'flow_prompt_speech_token': torch.zeros(1, 0, dtype=torch.int32),
+                'flow_prompt_speech_token_len': torch.tensor([0], dtype=torch.int32),
+                'prompt_speech_feat': torch.zeros(1, 0, 80),
+                'prompt_speech_feat_len': torch.tensor([0], dtype=torch.int32),
+                'llm_embedding': embedding,
+                'flow_embedding': embedding,
+            }
+
+            # Run inference - the model will handle streaming token-by-token internally
+            start_time = time.time()
+            for model_output in self.model.tts(**model_input, stream=stream, speed=speed):
+                speech_len = model_output['tts_speech'].shape[1] / self.sample_rate
+                logging.info('yield speech len {}, rtf {}'.format(speech_len, (time.time() - start_time) / speech_len))
+                yield model_output
+                start_time = time.time()
+
+        finally:
+            # Restore original values
+            self.model.token_hop_len = original_token_hop_len
+            self.model.mel_cache_len = original_mel_cache_len
+            self.model.source_cache_len = original_source_cache_len
